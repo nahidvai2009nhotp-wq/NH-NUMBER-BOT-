@@ -30,7 +30,7 @@ let isWithdrawActive = false;
 let broadcastState = {}; 
 let groupSettingState = {};
 let adminActionState = {}; 
-let extraAdmins = []; // <--- New Admin List
+let extraAdmins = []; 
 
 let config = {
     otpGroup: "https://t.me/yoosms_otp", 
@@ -69,7 +69,6 @@ const findUser = (input) => {
     return null;
 };
 
-// ... (getCountryByPattern and getFlag functions remain exactly the same as your code)
 const getCountryByPattern = (pattern) => {
     const patternMap = {
         "93": "Afghanistan", "355": "Albania", "213": "Algeria", "1684": "American Samoa", "376": "Andorra",
@@ -224,7 +223,7 @@ const sendAdminPanel = (chatId) => {
                 [{ text: "➕ Add Service", callback_data: "admin_add_service" }, { text: "🗑 Delete Service", callback_data: "admin_del_service" }],
                 [{ text: "💰 Add Rate", callback_data: "admin_add_rate" }, { text: "🗑 Delete Range", callback_data: "admin_del_num" }],
                 [{ text: "📊 Check Nexa Range", callback_data: "admin_check_range" }],
-                [{ text: "👤 Edit Admin", callback_data: "admin_edit_manager" }], // <--- New Button
+                [{ text: "👤 Edit Admin", callback_data: "admin_edit_manager" }], 
                 [{ text: "✅ Withdraw ON", callback_data: "admin_withdraw_on" }, { text: "❌ Withdraw OFF", callback_data: "admin_withdraw_off" }],
                 [{ text: "⚙️ Edit Force Join", callback_data: "admin_group_settings" }],
                 [{ text: "🔘 Edit OTP Button", callback_data: "admin_otp_btn_settings" }],
@@ -273,7 +272,6 @@ bot.on('callback_query', async (query) => {
             await bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
             sendMainMenu(chatId, query.from.username);
         }
-        // --- NEW ADMIN MANAGER CALLBACKS ---
         else if (data === "admin_edit_manager") {
             if (userId !== ADMIN_ID) return;
             bot.editMessageText("👤 **Admin Management**\nChoose an action:", {
@@ -296,8 +294,6 @@ bot.on('callback_query', async (query) => {
             adminActionState[userId] = 'removing_admin';
             bot.sendMessage(chatId, "👤 Send the **User ID** or **Username** to remove from Admin:");
         }
-        // --- END NEW CALLBACKS ---
-
         else if (data === "admin_check_range") {
             if (!isAdmin(userId)) return;
             try {
@@ -398,7 +394,6 @@ bot.on('callback_query', async (query) => {
             groupSettingState[userId] = data;
             bot.sendMessage(chatId, `Please send the new value for: ${data.replace('set_', '').replace(/_/g, ' ').toUpperCase()}`);
         }
-        // ... (remaining callback logic for numbers/menu stays the same)
         else if (data === "menu_balance") {
             const user = users[userId] || { balance: 0 };
             let msg = `💰 **Your Balance:** $${user.balance.toFixed(4)}\n\n`;
@@ -496,11 +491,10 @@ bot.on('callback_query', async (query) => {
                     
                     assignedNumbers.push(numData);
 
-                    // --- ASSIGNED UI ---
                     const assignedMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝙰𝚂𝚂𝙸𝙶𝙽𝙴𝙳 .𓆪𓆪\n` +
                                       `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
                                       `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
-                                      `⏳ ᯓ𝚂𝚃𝙰𝚃𝚄𝚂 » 𝚆𝚊𝚒𝚝𝚒𝚗𝚐 𝙵𝚘𝚛 𝚂𝙼𝚂...\n` +
+                                      `⏳ ᯓ𝚂𝚃𝙰𝚃𝚄𝚂 » 𝚆𝚊𝚒𝚝𝚒𝚗𝚘𝚐 𝙵𝚘𝚛 𝚂𝙼𝚂...\n` +
                                       `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
 
                     bot.editMessageText(assignedMsg, {
@@ -518,26 +512,25 @@ bot.on('callback_query', async (query) => {
                             const otpRes = await axios.get(`${NEXA_BASE_URL}numbers/${numData.number_id}/sms?api_key=${NEXA_API_KEY}`);
                             if (otpRes.data && otpRes.data.success && otpRes.data.otp) {
                                 clearInterval(checkOTP);
+                                if (!users[userId]) users[userId] = { balance: 0, username: 'User', isBanned: false };
                                 users[userId].balance += reward;
                                 
                                 bot.deleteMessage(chatId, numData.messageId).catch(() => {});
                                 
-                                // --- USER RECEIVED UI ---
                                 const userOtpMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
                                                   `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                  `☎️ ᯓ𝗡𝘂𝗺𝗯𝚎𝗿 » \`${numData.number}\`\n` +
+                                                  `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
                                                   `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n\n` +
                                                   `Your verification code is: ${otpRes.data.otp}. Do not share with anyone.`;
 
                                 bot.sendMessage(userId, userOtpMsg, { parse_mode: "Markdown" });
 
-                                // --- GROUP UI ---
                                 const rawNum = numData.number.toString();
                                 let maskedNum = rawNum.length > 8 ? rawNum.substring(0, 4) + "••••" + rawNum.substring(rawNum.length - 4) : "••••" + rawNum.substring(rawNum.length - 2);
 
                                 const groupMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
                                                  `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                 `☎️ ᯓ𝗡𝘂𝗺𝗯𝚎𝗿 » \`+${maskedNum}\`\n` +
+                                                 `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`+${maskedNum}\`\n` +
                                                  `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n` +
                                                  `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
                                 
@@ -641,7 +634,6 @@ bot.on('message', async (msg) => {
     if (isAdmin(userId) && adminActionState[userId]) {
         const action = adminActionState[userId];
         
-        // --- NEW ADMIN MANAGER LOGIC ---
         if (action === 'adding_new_admin') {
             const target = findUser(msgText.trim());
             if (target) {
@@ -668,7 +660,6 @@ bot.on('message', async (msg) => {
             delete adminActionState[userId];
             return;
         }
-        // --- END NEW ADMIN MANAGER LOGIC ---
 
         if (action === 'adding_service') {
             const sName = msgText.trim();
