@@ -10,34 +10,37 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 
 // --- CONFIG ---
-const TOKEN = '8808551290:AAE1sfjmD3PINgBltV5jyNzi7t9kS2lHp7U'; 
+const TOKEN = '8808551290:AAE1sfjmD3PINgBltV5jyNzi7t9kS2lHp7U';
 const ADMIN_ID = 7366391050;
 
 // UPDATED NEXA CONFIG
-const NEXA_API_KEY = 'nxa_c9b7b9961da8c469f9cecfe7c78518b01655d1cd'; 
-const NEXA_BASE_URL = 'http://185.190.142.81/api/v1/'; 
+const NEXA_API_KEY = 'nxa_c9b7b9961da8c469f9cecfe7c78518b01655d1cd';
+const NEXA_BASE_URL = 'http://185.190.142.81/api/v1/';
 
 const bot = new TelegramBot(TOKEN, { polling: true });
 
 // --- DATABASE ---
-let users = {}; 
-let services = {}; 
-let availableNumbers = []; 
-let assignedNumbers = []; 
-let transferStates = {}; 
-let withdrawStates = {}; 
-let isWithdrawActive = false; 
-let broadcastState = {}; 
+let users = {};
+let services = {};
+let availableNumbers = [];
+let assignedNumbers = [];
+let transferStates = {};
+let withdrawStates = {};
+let isWithdrawActive = false;
+let broadcastState = {};
 let groupSettingState = {};
-let adminActionState = {}; 
-let extraAdmins = []; 
+let adminActionState = {};
+let extraAdmins = [];
+
+// REFERRAL SETTINGS
+const REFERRAL_COMMISSION = 0.15; // 15% কমিশন
 
 let config = {
-    otpGroup: "https://t.me/nhotpnumber", 
+    otpGroup: "https://t.me/nhotpnumber",
     updateGroup: "https://t.me/otpmethodokk",
     otpUsername: "@nhotpnumber",
     updateUsername: "@otpmethodokk",
-    otpButtonText: "Get Number Now", 
+    otpButtonText: "Get Number Now",
     otpButtonUrl: "https://t.me/YourBotLink",
     channel1Name: "📢 Join Channel 1",
     channel2Name: "📢 Join Channel 2"
@@ -209,6 +212,7 @@ const sendMainMenu = (chatId, username) => {
             inline_keyboard: [
                 [{ text: "📱 Get Number", callback_data: "menu_get_number" }, { text: "💰 Balance", callback_data: "menu_balance" }],
                 [{ text: "📱 Active Number", callback_data: "menu_active" }, { text: "💸 Withdraw", callback_data: "menu_withdraw" }],
+                [{ text: "🤝 Referral", callback_data: "menu_referral" }], // নতুন বাটন
                 [{ text: "🤖 Bot Update Channel", url: config.updateGroup }]
             ]
         }
@@ -249,7 +253,7 @@ bot.on('callback_query', async (query) => {
         if (data === "check_join") {
             const joined = await checkJoin(userId);
             if (joined) {
-                if (!users[userId]) users[userId] = { balance: 0, username: query.from.username || 'User', isBanned: false };
+                if (!users[userId]) users[userId] = { balance: 0, username: query.from.username || 'User', isBanned: false, referrals: 0, earnings: 0, referredBy: null };
                 await bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
                 return sendMainMenu(chatId, query.from.username);
             } else {
@@ -271,6 +275,30 @@ bot.on('callback_query', async (query) => {
             delete adminActionState[userId];
             await bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
             sendMainMenu(chatId, query.from.username);
+        }
+        else if (data === "menu_referral") {
+            const user = users[userId];
+            const botInfo = await bot.getMe();
+            const refLink = `https://t.me/${botInfo.username}?start=ref_${userId}`;
+            
+            let refMsg = `╔════════════════════╗\n` +
+                         `  🤝 *Referral Program*\n\n` +
+                         `  Share your link and earn **${(REFERRAL_COMMISSION * 100).toFixed(1)}%** of\n` +
+                         `  every OTP reward your referrals earn! ||\n\n` +
+                         `  🔗 \`${refLink}\` ||\n\n` +
+                         `  👥 Referrals: ${user.referrals || 0}\n` +
+                         `  💰 Total Earned: \`$${(user.earnings || 0).toFixed(4)}\`\n\n` +
+                         `  📌 Referred by: ${user.referredBy || "None"}\n\n` +
+                         `  📋 Your Referrals:\n` +
+                         `  ${user.referrals > 0 ? "Check your stats above" : "No referrals yet"}\n` +
+                         `╚════════════════════╝`;
+
+            bot.editMessageText(refMsg, {
+                chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [[{ text: "🔙 Back to Menu", callback_data: "main_menu" }]]
+                }
+            });
         }
         else if (data === "admin_edit_manager") {
             if (userId !== ADMIN_ID) return;
@@ -514,12 +542,21 @@ bot.on('callback_query', async (query) => {
                                 clearInterval(checkOTP);
                                 if (!users[userId]) users[userId] = { balance: 0, username: 'User', isBanned: false };
                                 users[userId].balance += reward;
+
+                                // Referral Commission Logic
+                                if (users[userId].referredBy && users[users[userId].referredBy]) {
+                                    const refId = users[userId].referredBy;
+                                    const commission = reward * REFERRAL_COMMISSION;
+                                    users[refId].balance += commission;
+                                    users[refId].earnings += commission;
+                                    bot.sendMessage(refId, `🎁 **Referral Bonus!**\nYou earned $${commission.toFixed(4)} from your referral's OTP!`);
+                                }
                                 
                                 bot.deleteMessage(chatId, numData.messageId).catch(() => {});
                                 
                                 const userOtpMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
                                                   `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                  `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
+                                                  `☎️ ᯓ𝗡𝘂𝗺𝗯𝚎𝗿 » \`${numData.number}\`\n` +
                                                   `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n\n` +
                                                   `Your verification code is: ${otpRes.data.otp}. Do not share with anyone.`;
 
@@ -530,7 +567,7 @@ bot.on('callback_query', async (query) => {
 
                                 const groupMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
                                                  `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                 `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`+${maskedNum}\`\n` +
+                                                 `☎️ ᯓ𝗡𝘂𝗺𝗯𝚎𝗿 » \`+${maskedNum}\`\n` +
                                                  `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n` +
                                                  `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
                                 
@@ -574,7 +611,7 @@ bot.on('callback_query', async (query) => {
             const state = transferStates[userId];
             if (state && users[userId].balance >= state.amount) {
                 users[userId].balance -= state.amount;
-                if (!users[state.targetId]) users[state.targetId] = { balance: 0, username: 'User', isBanned: false };
+                if (!users[state.targetId]) users[state.targetId] = { balance: 0, username: 'User', isBanned: false, referrals: 0, earnings: 0, referredBy: null };
                 users[state.targetId].balance += state.amount;
                 bot.editMessageText(`✅ **Transfer Successful!**\n\n💵 Amount: $${state.amount.toFixed(4)}\n🆔 To: \`${state.targetId}\``, {
                     chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown",
@@ -628,7 +665,7 @@ bot.on('message', async (msg) => {
     const userId = msg.from?.id;
     if (!userId) return;
 
-    if (!users[userId]) users[userId] = { balance: 0, username: msg.from.username || 'User', isBanned: false };
+    if (!users[userId]) users[userId] = { balance: 0, username: msg.from.username || 'User', isBanned: false, referrals: 0, earnings: 0, referredBy: null };
     else users[userId].username = msg.from.username || 'User';
 
     if (isAdmin(userId) && adminActionState[userId]) {
@@ -784,7 +821,16 @@ bot.on('message', async (msg) => {
         }
     }
 
-    if (msgText === '/start') {
+    if (msgText.startsWith('/start')) {
+        const parts = msgText.split(' ');
+        if (parts.length > 1 && parts[1].startsWith('ref_')) {
+            const refId = parts[1].split('_')[1];
+            if (!users[userId] && users[refId] && refId != userId) {
+                users[userId] = { balance: 0, username: msg.from.username || 'User', isBanned: false, referrals: 0, earnings: 0, referredBy: refId };
+                users[refId].referrals++;
+                bot.sendMessage(refId, `🔔 **New Referral!**\nUser \`${userId}\` has joined using your link.`);
+            }
+        }
         if (!(await checkJoin(userId)) && !isAdmin(userId)) return sendJoinMessage(chatId);
         return sendMainMenu(chatId, msg.from.username);
     }
