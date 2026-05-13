@@ -33,8 +33,8 @@ let adminActionState = {};
 let extraAdmins = []; 
 
 let config = {
-    otpGroup: "https://t.me/yoosms_otp", 
-    updateGroup: "https://t.me/yooosmsupdate",
+    otpGroup: "https://t.me/nhotpnumber", 
+    updateGroup: "https://t.me/otpmethodokk",
     otpUsername: "@yoosms_otp",
     updateUsername: "@yooosmsupdate",
     otpButtonText: "Get Number Now", 
@@ -196,7 +196,7 @@ const sendMainMenu = (chatId, username) => {
     }
     
     const welcomeMsg = `👋 **Hello @${username || 'User'}!**\n\n` +
-                       `🚀 **Welcome to YOOSMS Bot**\n` +
+                       `🚀 **Welcome to NH NUMBER BOT 🔥⚡ Bot**\n` +
                        `━━━━━━━━━━━━━━━━━━\n` +
                        `💰 **Balance:** $${(users[chatId]?.balance || 0).toFixed(4)}\n` +
                        `📱 **Total Active:** ${assignedNumbers.filter(n => n.userId === chatId).length}\n` +
