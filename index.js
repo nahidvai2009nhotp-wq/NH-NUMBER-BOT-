@@ -31,10 +31,14 @@ let broadcastState = {};
 let groupSettingState = {};
 let adminActionState = {};
 let extraAdmins = [];
-let numberLimit = 1; // Default limit
+let numberLimit = 1; 
+
+// TRAFFIC DATA STORE
+let otpTraffic = {}; 
+let lastTrafficPostId = null;
 
 // REFERRAL SETTINGS
-const REFERRAL_COMMISSION = 0.15; // 15% Commission
+const REFERRAL_COMMISSION = 0.15; 
 
 let config = {
     otpGroup: "https://t.me/nhotpnumber",
@@ -46,6 +50,33 @@ let config = {
     channel1Name: "📢 Join Channel 1",
     channel2Name: "📢 Join Channel 2"
 };
+
+// --- TRAFFIC UPDATE LOGIC (Every 10 Mins) ---
+setInterval(async () => {
+    let trafficText = "📊 **𝗧𝗥𝗔𝗙𝗙𝗜𝗖 𝗦𝗘𝗥𝗩𝗘𝗥 𝗨𝗣𝗗𝗔𝗧𝗘**\n\n";
+    const serviceKeys = Object.keys(otpTraffic);
+    
+    if (serviceKeys.length === 0) {
+        trafficText += "No traffic recorded yet.";
+    } else {
+        serviceKeys.forEach(service => {
+            trafficText += `🔹 **${service.toUpperCase()}**: ${otpTraffic[service]} OTPs Received\n`;
+        });
+    }
+    trafficText += `\n🕒 Last Updated: ${new Date().toLocaleTimeString()}`;
+
+    try {
+        if (lastTrafficPostId) {
+            await bot.editMessageText(trafficText, { chat_id: config.otpUsername, message_id: lastTrafficPostId, parse_mode: "Markdown" });
+        } else {
+            const sentMsg = await bot.sendMessage(config.otpUsername, trafficText, { parse_mode: "Markdown" });
+            lastTrafficPostId = sentMsg.message_id;
+        }
+    } catch (e) {
+        const sentMsg = await bot.sendMessage(config.otpUsername, trafficText, { parse_mode: "Markdown" });
+        lastTrafficPostId = sentMsg.message_id;
+    }
+}, 600000); 
 
 // --- HELPERS ---
 const isAdmin = (userId) => {
@@ -117,7 +148,7 @@ const getCountryByPattern = (pattern) => {
         "65": "Singapore", "1721": "Sint Maarten", "421": "Slovakia", "386": "Slovenia", "677": "Solomon Islands",
         "252": "Somalia", "27": "South Africa", "82": "South Korea", "211": "South Sudan", "34": "Spain",
         "94": "Sri Lanka", "249": "Sudan", "597": "Suriname", "268": "Swaziland", "46": "Sweden",
-        "41": "Switzerland", "963": "Syria", "886": "Taiwan", "992": "Tajikistan", "255": "Tanzania",
+        "41": "Switzerland", "963": "Syria", "886": "Taiwan", "992": "Tajিকistan", "255": "Tanzania",
         "66": "Thailand", "228": "Togo", "690": "Tokelau", "676": "Tonga", "1868": "Trinidad and Tobago",
         "216": "Tunisia", "90": "Turkey", "993": "Turkmenistan", "1649": "Turks and Caicos Islands", "688": "Tuvalu",
         "1340": "U.S. Virgin Islands", "256": "Uganda", "380": "Ukraine", "971": "UAE", "44": "UK",
@@ -213,6 +244,7 @@ const sendMainMenu = (chatId, username) => {
             inline_keyboard: [
                 [{ text: "📱 Get Number", callback_data: "menu_get_number" }, { text: "💰 Balance", callback_data: "menu_balance" }],
                 [{ text: "📱 Active Number", callback_data: "menu_active" }, { text: "💸 Withdraw", callback_data: "menu_withdraw" }],
+                [{ text: "📊 𝗧𝗥𝗔𝗙𝗙𝗜𝗖 𝗦𝗘𝗥𝗩𝗘𝗥", callback_data: "menu_traffic" }],
                 [{ text: "🤝 Referral", callback_data: "menu_referral" }],
                 [{ text: "🤖 Bot Update Channel", url: config.updateGroup }]
             ]
@@ -277,6 +309,26 @@ bot.on('callback_query', async (query) => {
             delete adminActionState[userId];
             await bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
             sendMainMenu(chatId, query.from.username);
+        }
+        else if (data === "menu_traffic") {
+            const serviceKeys = Object.keys(services);
+            if (serviceKeys.length === 0) return bot.sendMessage(chatId, "❌ No services available.");
+            
+            let buttons = serviceKeys.map(s => [{ text: s, callback_data: `view_traffic_${s}` }]);
+            buttons.push([{ text: "🔙 Back", callback_data: "main_menu" }]);
+            
+            bot.editMessageText("📊 **Kon service er traffic dekte chaiben?**", {
+                chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown",
+                reply_markup: { inline_keyboard: buttons }
+            });
+        }
+        else if (data.startsWith("view_traffic_")) {
+            const sName = data.split("_")[2];
+            const count = otpTraffic[sName] || 0;
+            bot.editMessageText(`📊 **Traffic for ${sName.toUpperCase()}**\n\n🔥 Total OTPs received: **${count}**\n\n_Note: Group update post every 10 minutes._`, {
+                chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown",
+                reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "menu_traffic" }]] }
+            });
         }
         else if (data === "menu_referral") {
             const user = users[userId];
@@ -496,7 +548,6 @@ bot.on('callback_query', async (query) => {
                 let loadingText = "Getting Numbers.";
                 await bot.editMessageText(`⏳ **${loadingText}**`, { chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown" });
                 
-                // Number limit logic for multi-request
                 for (let i = 0; i < numberLimit; i++) {
                     const response = await axios.post(`${NEXA_BASE_URL}numbers/get?api_key=${NEXA_API_KEY}`, {
                         range: rangePattern,
@@ -509,7 +560,6 @@ bot.on('callback_query', async (query) => {
                         const serviceUpper = sName.toUpperCase();
                         const reward = services[sName]?.rates[rangePattern] || 0.0030;
 
-                        // Create separate message for each number
                         const initialMsg = await bot.sendMessage(chatId, `⏳ **Getting Number ${i+1}...**`, { parse_mode: "Markdown" });
 
                         const numData = {
@@ -539,12 +589,15 @@ bot.on('callback_query', async (query) => {
                             }
                         });
 
-                        // Start OTP check for this specific number
                         let checkOTP = setInterval(async () => {
                             try {
                                 const otpRes = await axios.get(`${NEXA_BASE_URL}numbers/${numData.number_id}/sms?api_key=${NEXA_API_KEY}`);
                                 if (otpRes.data && otpRes.data.success && otpRes.data.otp) {
                                     clearInterval(checkOTP);
+                                    
+                                    // Traffic Tracking
+                                    otpTraffic[sName] = (otpTraffic[sName] || 0) + 1;
+
                                     if (!users[userId]) users[userId] = { balance: 0, username: 'User', isBanned: false };
                                     users[userId].balance += reward;
 
@@ -570,7 +623,7 @@ bot.on('callback_query', async (query) => {
                                     let maskedNum = rawNum.length > 8 ? rawNum.substring(0, 4) + "••••" + rawNum.substring(rawNum.length - 4) : "••••" + rawNum.substring(rawNum.length - 2);
 
                                     const groupMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
-                                                     `${flag} ᯓ𝙲𝚘𝚞𝚗𝒕𝚛𝚢 » ${country}\n` +
+                                                     `${flag} ᯓ𝙲𝚘𝚞𝒏𝒕𝚛𝚢 » ${country}\n` +
                                                      `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`+${maskedNum}\`\n` +
                                                      `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n` +
                                                      `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
@@ -589,7 +642,6 @@ bot.on('callback_query', async (query) => {
                     }
                 }
                 
-                // Final clean up of the main message
                 bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
 
             } catch (error) {
@@ -843,7 +895,6 @@ bot.on('message', async (msg) => {
     if (msgText.startsWith('/start')) {
         const parts = msgText.split(' ');
         
-        // Referral check
         if (parts.length > 1 && parts[1].startsWith('ref_')) {
             const refId = parts[1].split('_')[1];
             
