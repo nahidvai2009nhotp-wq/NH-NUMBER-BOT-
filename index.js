@@ -11,7 +11,7 @@ app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 
 // --- CONFIG ---
 const TOKEN = '8808551290:AAE1sfjmD3PINgBltV5jyNzi7t9kS2lHp7U';
-const ADMIN_ID = 7488161246;
+const ADMIN_ID = 7366391050;
 
 // UPDATED NEXA CONFIG
 const NEXA_API_KEY = 'nxa_c9b7b9961da8c469f9cecfe7c78518b01655d1cd';
@@ -33,7 +33,7 @@ let adminActionState = {};
 let extraAdmins = [];
 
 // REFERRAL SETTINGS
-const REFERRAL_COMMISSION = 0.15; // 15% কমিশন
+const REFERRAL_COMMISSION = 0.15; // 15% Commission
 
 let config = {
     otpGroup: "https://t.me/nhotpnumber",
@@ -212,7 +212,7 @@ const sendMainMenu = (chatId, username) => {
             inline_keyboard: [
                 [{ text: "📱 Get Number", callback_data: "menu_get_number" }, { text: "💰 Balance", callback_data: "menu_balance" }],
                 [{ text: "📱 Active Number", callback_data: "menu_active" }, { text: "💸 Withdraw", callback_data: "menu_withdraw" }],
-                [{ text: "🤝 Referral", callback_data: "menu_referral" }], // নতুন বাটন
+                [{ text: "🤝 Referral", callback_data: "menu_referral" }],
                 [{ text: "🤖 Bot Update Channel", url: config.updateGroup }]
             ]
         }
@@ -556,7 +556,7 @@ bot.on('callback_query', async (query) => {
                                 
                                 const userOtpMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
                                                   `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                  `☎️ ᯓ𝗡𝘂𝗺𝗯𝚎𝗿 » \`${numData.number}\`\n` +
+                                                  `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
                                                   `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n\n` +
                                                   `Your verification code is: ${otpRes.data.otp}. Do not share with anyone.`;
 
@@ -567,7 +567,7 @@ bot.on('callback_query', async (query) => {
 
                                 const groupMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
                                                  `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                 `☎️ ᯓ𝗡𝘂𝗺𝗯𝚎𝗿 » \`+${maskedNum}\`\n` +
+                                                 `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`+${maskedNum}\`\n` +
                                                  `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n` +
                                                  `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
                                 
@@ -823,14 +823,37 @@ bot.on('message', async (msg) => {
 
     if (msgText.startsWith('/start')) {
         const parts = msgText.split(' ');
+        
+        // Referral check
         if (parts.length > 1 && parts[1].startsWith('ref_')) {
             const refId = parts[1].split('_')[1];
-            if (!users[userId] && users[refId] && refId != userId) {
-                users[userId] = { balance: 0, username: msg.from.username || 'User', isBanned: false, referrals: 0, earnings: 0, referredBy: refId };
-                users[refId].referrals++;
-                bot.sendMessage(refId, `🔔 **New Referral!**\nUser \`${userId}\` has joined using your link.`);
+            
+            // নতুন ইউজার চেক (আগে ডেটাবেসে না থাকলে)
+            if (!users[userId] || (users[userId] && users[userId].referredBy === null && userId != refId)) {
+                if (!users[userId]) {
+                    users[userId] = { balance: 0, username: msg.from.username || 'User', isBanned: false, referrals: 0, earnings: 0, referredBy: null };
+                }
+                
+                // যদি আগে থেকে কাউকে রেফার করা না থাকে
+                if (users[userId].referredBy === null && users[refId] && refId != userId) {
+                    users[userId].referredBy = refId;
+                    users[refId].referrals = (users[refId].referrals || 0) + 1;
+                    
+                    // আপনার ছবির মতো মেসেজ ডিজাইন
+                    let refferMsg = `╔════════════════════╗\n` +
+                                    `  🎁 *Referral Milestone!*\n\n` +
+                                    `  User \`${userId}\` has joined\n` +
+                                    `  using your link! ||\n\n` +
+                                    `  👥 Total Referrals: ${users[refId].referrals}\n` +
+                                    `  💰 Total Earned: \`$${(users[refId].earnings || 0).toFixed(4)}\`\n\n` +
+                                    `  Keep sharing to earn more! ||\n` +
+                                    `╚════════════════════╝`;
+                    
+                    bot.sendMessage(refId, refferMsg, { parse_mode: "Markdown" }).catch(() => {});
+                }
             }
         }
+        
         if (!(await checkJoin(userId)) && !isAdmin(userId)) return sendJoinMessage(chatId);
         return sendMainMenu(chatId, msg.from.username);
     }
