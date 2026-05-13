@@ -35,8 +35,8 @@ let extraAdmins = [];
 let config = {
     otpGroup: "https://t.me/nhotpnumber", 
     updateGroup: "https://t.me/otpmethodokk",
-    otpUsername: "@nhotp ",
-    updateUsername: "@nh_updates",
+    otpUsername: "@nhotpnumber",
+    updateUsername: "@nhmethodokk",
     otpButtonText: "Get Number Now", 
     otpButtonUrl: "https://t.me/YourBotLink",
     channel1Name: "📢 Join Channel 1",
