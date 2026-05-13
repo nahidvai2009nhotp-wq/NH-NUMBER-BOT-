@@ -36,7 +36,7 @@ let config = {
     otpGroup: "https://t.me/nhotpnumber", 
     updateGroup: "https://t.me/otpmethodokk",
     otpUsername: "@nhotpnumber",
-    updateUsername: "@nhmethodokk",
+    updateUsername: "@otpmethodokk",
     otpButtonText: "Get Number Now", 
     otpButtonUrl: "https://t.me/YourBotLink",
     channel1Name: "📢 Join Channel 1",
