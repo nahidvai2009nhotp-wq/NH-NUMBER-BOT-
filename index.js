@@ -31,6 +31,7 @@ let broadcastState = {};
 let groupSettingState = {};
 let adminActionState = {};
 let extraAdmins = [];
+let numberLimit = 1; // Default limit
 
 // REFERRAL SETTINGS
 const REFERRAL_COMMISSION = 0.15; // 15% Commission
@@ -231,6 +232,7 @@ const sendAdminPanel = (chatId) => {
                 [{ text: "✅ Withdraw ON", callback_data: "admin_withdraw_on" }, { text: "❌ Withdraw OFF", callback_data: "admin_withdraw_off" }],
                 [{ text: "⚙️ Edit Force Join", callback_data: "admin_group_settings" }],
                 [{ text: "🔘 Edit OTP Button", callback_data: "admin_otp_btn_settings" }],
+                [{ text: "🔢 Number Limit", callback_data: "admin_number_limit" }],
                 [{ text: "🏠 Main Menu", callback_data: "main_menu" }]
             ]
         }
@@ -299,6 +301,11 @@ bot.on('callback_query', async (query) => {
                     inline_keyboard: [[{ text: "🔙 Back to Menu", callback_data: "main_menu" }]]
                 }
             });
+        }
+        else if (data === "admin_number_limit") {
+            if (!isAdmin(userId)) return;
+            adminActionState[userId] = 'setting_number_limit';
+            bot.sendMessage(chatId, `🔢 Current Number Limit: **${numberLimit}**\n\nPlease send the new limit (e.g., 3):`, { parse_mode: "Markdown" });
         }
         else if (data === "admin_edit_manager") {
             if (userId !== ADMIN_ID) return;
@@ -486,105 +493,105 @@ bot.on('callback_query', async (query) => {
         else if (data.startsWith("country_")) {
             const [, sName, rangePattern] = data.split("_");
             try {
-                let loadingText = "Getting Number.";
+                let loadingText = "Getting Numbers.";
                 await bot.editMessageText(`⏳ **${loadingText}**`, { chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown" });
                 
-                let animationInterval = setInterval(() => {
-                    if (loadingText === "Getting Number....") loadingText = "Getting Number.";
-                    else loadingText += ".";
-                    bot.editMessageText(`⏳ **${loadingText}**`, { chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown" }).catch(() => {});
-                }, 800);
-
-                const response = await axios.post(`${NEXA_BASE_URL}numbers/get?api_key=${NEXA_API_KEY}`, {
-                    range: rangePattern,
-                    format: "normal"
-                });
-
-                clearInterval(animationInterval);
-
-                if (response.data && response.data.success) {
-                    const country = getCountryByPattern(rangePattern);
-                    const flag = getFlag(country);
-                    const serviceUpper = sName.toUpperCase();
-                    const reward = services[sName]?.rates[rangePattern] || 0.0030;
-
-                    const numData = {
-                        service: sName,
+                // Number limit logic for multi-request
+                for (let i = 0; i < numberLimit; i++) {
+                    const response = await axios.post(`${NEXA_BASE_URL}numbers/get?api_key=${NEXA_API_KEY}`, {
                         range: rangePattern,
-                        number: response.data.number,
-                        number_id: response.data.number_id,
-                        userId: userId,
-                        messageId: query.message.message_id
-                    };
-                    
-                    assignedNumbers.push(numData);
-
-                    const assignedMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝙰𝚂𝚂𝙸𝙶𝙽𝙴𝙳 .𓆪𓆪\n` +
-                                      `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                      `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
-                                      `⏳ ᯓ𝚂𝚃𝙰𝚃𝚄𝚂 » 𝚆𝚊𝚒𝚝𝚒𝚗𝚘𝚐 𝙵𝚘𝚛 𝚂𝙼𝚂...\n` +
-                                      `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
-
-                    bot.editMessageText(assignedMsg, {
-                        chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown",
-                        reply_markup: { 
-                            inline_keyboard: [
-                                [{ text: "🗑 Delete Number", callback_data: `del_${numData.number}` }], 
-                                [{ text: "📱 OTP GROUP HERE", url: config.otpGroup }]
-                            ] 
-                        }
+                        format: "normal"
                     });
 
-                    let checkOTP = setInterval(async () => {
-                        try {
-                            const otpRes = await axios.get(`${NEXA_BASE_URL}numbers/${numData.number_id}/sms?api_key=${NEXA_API_KEY}`);
-                            if (otpRes.data && otpRes.data.success && otpRes.data.otp) {
-                                clearInterval(checkOTP);
-                                if (!users[userId]) users[userId] = { balance: 0, username: 'User', isBanned: false };
-                                users[userId].balance += reward;
+                    if (response.data && response.data.success) {
+                        const country = getCountryByPattern(rangePattern);
+                        const flag = getFlag(country);
+                        const serviceUpper = sName.toUpperCase();
+                        const reward = services[sName]?.rates[rangePattern] || 0.0030;
 
-                                // Referral Commission Logic
-                                if (users[userId].referredBy && users[users[userId].referredBy]) {
-                                    const refId = users[userId].referredBy;
-                                    const commission = reward * REFERRAL_COMMISSION;
-                                    users[refId].balance += commission;
-                                    users[refId].earnings += commission;
-                                    bot.sendMessage(refId, `🎁 **Referral Bonus!**\nYou earned $${commission.toFixed(4)} from your referral's OTP!`);
-                                }
-                                
-                                bot.deleteMessage(chatId, numData.messageId).catch(() => {});
-                                
-                                const userOtpMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
-                                                  `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                  `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
-                                                  `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n\n` +
-                                                  `Your verification code is: ${otpRes.data.otp}. Do not share with anyone.`;
+                        // Create separate message for each number
+                        const initialMsg = await bot.sendMessage(chatId, `⏳ **Getting Number ${i+1}...**`, { parse_mode: "Markdown" });
 
-                                bot.sendMessage(userId, userOtpMsg, { parse_mode: "Markdown" });
+                        const numData = {
+                            service: sName,
+                            range: rangePattern,
+                            number: response.data.number,
+                            number_id: response.data.number_id,
+                            userId: userId,
+                            messageId: initialMsg.message_id
+                        };
+                        
+                        assignedNumbers.push(numData);
 
-                                const rawNum = numData.number.toString();
-                                let maskedNum = rawNum.length > 8 ? rawNum.substring(0, 4) + "••••" + rawNum.substring(rawNum.length - 4) : "••••" + rawNum.substring(rawNum.length - 2);
+                        const assignedMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝙰𝚂𝚂𝙸𝙶𝙽𝙴𝙳 .𓆪𓆪\n` +
+                                          `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
+                                          `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
+                                          `⏳ ᯓ𝚂𝚃𝙰𝚃𝚄𝚂 » 𝚆𝚊𝚒𝚝𝚒𝚗𝚘𝚐 𝙵𝚘𝚛 𝚂𝙼𝚂...\n` +
+                                          `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
 
-                                const groupMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
-                                                 `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                 `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`+${maskedNum}\`\n` +
-                                                 `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n` +
-                                                 `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
-                                
-                                bot.sendMessage(config.otpUsername, groupMsg, { 
-                                    parse_mode: "Markdown",
-                                    reply_markup: {
-                                        inline_keyboard: [[{ text: config.otpButtonText, url: config.otpButtonUrl }]]
-                                    }
-                                }).catch(() => {});
-                                
-                                assignedNumbers = assignedNumbers.filter(n => n.number_id !== numData.number_id);
+                        bot.editMessageText(assignedMsg, {
+                            chat_id: chatId, message_id: initialMsg.message_id, parse_mode: "Markdown",
+                            reply_markup: { 
+                                inline_keyboard: [
+                                    [{ text: "🗑 Delete Number", callback_data: `del_${numData.number}` }], 
+                                    [{ text: "📱 OTP GROUP HERE", url: config.otpGroup }]
+                                ] 
                             }
-                        } catch (err) { console.log("OTP Check Err:", err); }
-                    }, 2000);
-                } else {
-                    bot.editMessageText("⚠️ Number Request Failed! Please try again.", { chat_id: chatId, message_id: query.message.message_id });
+                        });
+
+                        // Start OTP check for this specific number
+                        let checkOTP = setInterval(async () => {
+                            try {
+                                const otpRes = await axios.get(`${NEXA_BASE_URL}numbers/${numData.number_id}/sms?api_key=${NEXA_API_KEY}`);
+                                if (otpRes.data && otpRes.data.success && otpRes.data.otp) {
+                                    clearInterval(checkOTP);
+                                    if (!users[userId]) users[userId] = { balance: 0, username: 'User', isBanned: false };
+                                    users[userId].balance += reward;
+
+                                    if (users[userId].referredBy && users[users[userId].referredBy]) {
+                                        const refId = users[userId].referredBy;
+                                        const commission = reward * REFERRAL_COMMISSION;
+                                        users[refId].balance += commission;
+                                        users[refId].earnings += commission;
+                                        bot.sendMessage(refId, `🎁 **Referral Bonus!**\nYou earned $${commission.toFixed(4)} from your referral's OTP!`);
+                                    }
+                                    
+                                    bot.deleteMessage(chatId, numData.messageId).catch(() => {});
+                                    
+                                    const userOtpMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
+                                                      `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
+                                                      `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
+                                                      `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n\n` +
+                                                      `Your verification code is: ${otpRes.data.otp}. Do not share with anyone.`;
+
+                                    bot.sendMessage(userId, userOtpMsg, { parse_mode: "Markdown" });
+
+                                    const rawNum = numData.number.toString();
+                                    let maskedNum = rawNum.length > 8 ? rawNum.substring(0, 4) + "••••" + rawNum.substring(rawNum.length - 4) : "••••" + rawNum.substring(rawNum.length - 2);
+
+                                    const groupMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
+                                                     `${flag} ᯓ𝙲𝚘𝚞𝚗𝒕𝚛𝚢 » ${country}\n` +
+                                                     `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`+${maskedNum}\`\n` +
+                                                     `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n` +
+                                                     `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
+                                    
+                                    bot.sendMessage(config.otpUsername, groupMsg, { 
+                                        parse_mode: "Markdown",
+                                        reply_markup: {
+                                            inline_keyboard: [[{ text: config.otpButtonText, url: config.otpButtonUrl }]]
+                                        }
+                                    }).catch(() => {});
+                                    
+                                    assignedNumbers = assignedNumbers.filter(n => n.number_id !== numData.number_id);
+                                }
+                            } catch (err) { console.log("OTP Check Err:", err); }
+                        }, 2000);
+                    }
                 }
+                
+                // Final clean up of the main message
+                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+
             } catch (error) {
                 bot.answerCallbackQuery(query.id, { text: "❌ Connection Error!", show_alert: true });
             }
@@ -671,6 +678,18 @@ bot.on('message', async (msg) => {
     if (isAdmin(userId) && adminActionState[userId]) {
         const action = adminActionState[userId];
         
+        if (action === 'setting_number_limit') {
+            const limit = parseInt(msgText.trim());
+            if (!isNaN(limit) && limit > 0) {
+                numberLimit = limit;
+                bot.sendMessage(chatId, `✅ Number Limit updated to: **${numberLimit}**`, { parse_mode: "Markdown" });
+            } else {
+                bot.sendMessage(chatId, "❌ Invalid number limit.");
+            }
+            delete adminActionState[userId];
+            return;
+        }
+
         if (action === 'adding_new_admin') {
             const target = findUser(msgText.trim());
             if (target) {
@@ -828,18 +847,15 @@ bot.on('message', async (msg) => {
         if (parts.length > 1 && parts[1].startsWith('ref_')) {
             const refId = parts[1].split('_')[1];
             
-            // নতুন ইউজার চেক (আগে ডেটাবেসে না থাকলে)
             if (!users[userId] || (users[userId] && users[userId].referredBy === null && userId != refId)) {
                 if (!users[userId]) {
                     users[userId] = { balance: 0, username: msg.from.username || 'User', isBanned: false, referrals: 0, earnings: 0, referredBy: null };
                 }
                 
-                // যদি আগে থেকে কাউকে রেফার করা না থাকে
                 if (users[userId].referredBy === null && users[refId] && refId != userId) {
                     users[userId].referredBy = refId;
                     users[refId].referrals = (users[refId].referrals || 0) + 1;
                     
-                    // আপনার ছবির মতো মেসেজ ডিজাইন
                     let refferMsg = `╔════════════════════╗\n` +
                                     `  🎁 *Referral Milestone!*\n\n` +
                                     `  User \`${userId}\` has joined\n` +
