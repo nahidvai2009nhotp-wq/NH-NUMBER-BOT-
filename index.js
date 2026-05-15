@@ -14,7 +14,7 @@ const TOKEN = '8808551290:AAE1sfjmD3PINgBltV5jyNzi7t9kS2lHp7U';
 const ADMIN_ID = 7488161246;
 
 // UPDATED NEXA CONFIG
-const NEXA_API_KEY = 'nxa_c9b7b9961da8c469f9cecfe7c78518b01655d1cd';
+const NEXA_API_KEY = 'nxa_b6a860404a2972d80aacdaa6d11108d1ec13ba07';
 const NEXA_BASE_URL = 'http://185.190.142.81/api/v1/';
 
 const bot = new TelegramBot(TOKEN, { polling: true });
