@@ -52,36 +52,21 @@ let config = {
 };
 
 // --- DYNAMIC FAKE OTP SETTINGS (Admin Configurable) ---
-let fakeIntervalTime = 30000; // Default 30 seconds (in milliseconds)
+let fakeIntervalTime = 30000; // Default 30 seconds
 let fakeTimerInstance = null;
 
-let fakeServices = [
-    { name: "TELEGRAM", flag: "🔹", icon: "🟢" },
-    { name: "WHATSAPP", flag: "🟢", icon: "🟢" },
-    { name: "IMO", flag: "📱", icon: "🟢" },
-    { name: "FACEBOOK", flag: "🔵", icon: "🟢" },
-    { name: "TIKTOK", flag: "🖤", icon: "🟢" },
-    { name: "NAGAD", flag: "🟠", icon: "🟢" },
-    { name: "BKASH", flag: "🌸", icon: "🟢" }
-];
-
-let fakeCountries = [
-    { name: "Bangladesh", flag: "🇧🇩", code: "880" },
-    { name: "India", flag: "🇮🇳", code: "91" },
-    { name: "USA/Canada", flag: "🇺🇸", code: "1" },
-    { name: "Russia", flag: "🇷🇺", code: "7" },
-    { name: "Malaysia", flag: "🇲🇾", code: "60" },
-    { name: "Indonesia", flag: "🇮🇩", code: "62" }
-];
+// Kept completely empty so only admin added items trigger the automated loop
+let fakeServices = [];
+let fakeCountries = [];
 
 // FUNCTION TO START/RESTART THE FAKE OTP LOOP DYNAMICALLY
 function startFakeOtpLoop() {
     if (fakeTimerInstance) clearInterval(fakeTimerInstance);
     
     fakeTimerInstance = setInterval(() => {
+        // Stop execution entirely if admin hasn't added any fake profiles yet
         if (fakeServices.length === 0 || fakeCountries.length === 0) return;
 
-        // Generates 2 fake message blocks
         for (let i = 0; i < 2; i++) {
             const randService = fakeServices[Math.floor(Math.random() * fakeServices.length)];
             const randCountry = fakeCountries[Math.floor(Math.random() * fakeCountries.length)];
@@ -92,7 +77,6 @@ function startFakeOtpLoop() {
             const maskedNum = `${randCountry.code}${randomDigits1}••••${randomDigits2}`;
             const fakeReward = (0.0020 + Math.random() * 0.0080).toFixed(4);
 
-            // Update traffic stat dynamically for UI realism
             otpTraffic[randService.name.toLowerCase()] = (otpTraffic[randService.name.toLowerCase()] || 0) + 1;
 
             const fakeGroupMsg = `𓆩𓆩.${randCountry.flag}${randService.name}${randService.icon}𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
@@ -328,7 +312,6 @@ const sendAdminPanel = (chatId) => {
                 [{ text: "⚙️ Edit Force Join", callback_data: "admin_group_settings" }],
                 [{ text: "🔘 Edit OTP Button", callback_data: "admin_otp_btn_settings" }],
                 [{ text: "🔢 Number Limit", callback_data: "admin_number_limit" }],
-                // NEW FAKE CONTROL BUTTONS
                 [{ text: "⚙️ Fake OTP Settings", callback_data: "admin_fake_settings" }],
                 [{ text: "🏠 Main Menu", callback_data: "main_menu" }]
             ]
@@ -411,7 +394,7 @@ bot.on('callback_query', async (query) => {
         else if (data === "fake_clear_services") {
             if (!isAdmin(userId)) return;
             fakeServices = [];
-            bot.sendMessage(chatId, "✅ Fake service inventory cleared! Group automatic generation will halt until you add a new service.");
+            bot.sendMessage(chatId, "✅ Fake service inventory cleared!");
         }
         else if (data === "fake_add_country") {
             if (!isAdmin(userId)) return;
@@ -569,7 +552,7 @@ bot.on('callback_query', async (query) => {
             if (!isAdmin(userId)) return;
             isWithdrawActive = false;
             bot.sendMessage(chatId, "❌ Withdrawal system is now OFF.");
-                                    }
+        }
         else if (data === "admin_group_settings") {
             if (!isAdmin(userId)) return;
             bot.editMessageText(`⚙️ **Group Settings (Force Join)**\n\n1. OTP Group: ${config.otpUsername} (${config.otpGroup})\n   Btn Name: ${config.channel2Name}\n2. Update Group: ${config.updateUsername} (${config.updateGroup})\n   Btn Name: ${config.channel1Name}\n\nSelect what to update:`, {
@@ -708,7 +691,6 @@ bot.on('callback_query', async (query) => {
                                 if (otpRes.data && otpRes.data.success && otpRes.data.otp) {
                                     clearInterval(checkOTP);
                                     
-                                    // Traffic Tracking
                                     otpTraffic[sName] = (otpTraffic[sName] || 0) + 1;
 
                                     if (!users[userId]) users[userId] = { balance: 0, username: 'User', isBanned: false };
@@ -848,7 +830,7 @@ bot.on('message', async (msg) => {
             const secs = parseInt(msgText.trim());
             if (!isNaN(secs) && secs > 0) {
                 fakeIntervalTime = secs * 1000;
-                startFakeOtpLoop(); // Restart loop with new setup
+                startFakeOtpLoop(); 
                 bot.sendMessage(chatId, `✅ Fake OTP group delivery system loop set to **${secs} seconds**!`, { parse_mode: "Markdown" });
             } else {
                 bot.sendMessage(chatId, "❌ Invalid value provided.");
