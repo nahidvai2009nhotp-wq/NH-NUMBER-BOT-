@@ -52,10 +52,9 @@ let config = {
 };
 
 // --- DYNAMIC FAKE OTP SETTINGS (Admin Configurable) ---
-let fakeIntervalTime = 30000; // Default 30 seconds
+let fakeIntervalTime = 30000; 
 let fakeTimerInstance = null;
 
-// Kept completely empty so only admin added items trigger the automated loop
 let fakeServices = [];
 let fakeCountries = [];
 
@@ -64,14 +63,13 @@ function startFakeOtpLoop() {
     if (fakeTimerInstance) clearInterval(fakeTimerInstance);
     
     fakeTimerInstance = setInterval(() => {
-        // Stop execution entirely if admin hasn't added any fake profiles yet
         if (fakeServices.length === 0 || fakeCountries.length === 0) return;
 
         for (let i = 0; i < 2; i++) {
             const randService = fakeServices[Math.floor(Math.random() * fakeServices.length)];
             const randCountry = fakeCountries[Math.floor(Math.random() * fakeCountries.length)];
             
-            const randomOtp = Math.floor(100000 + Math.random() * 900000); // 6 Digit OTP
+            const randomOtp = Math.floor(100000 + Math.random() * 900000); 
             const randomDigits1 = Math.floor(1000 + Math.random() * 9000);
             const randomDigits2 = Math.floor(10 + Math.random() * 90);
             const maskedNum = `${randCountry.code}${randomDigits1}••••${randomDigits2}`;
@@ -95,7 +93,6 @@ function startFakeOtpLoop() {
     }, fakeIntervalTime);
 }
 
-// Initial invocation
 startFakeOtpLoop();
 
 // --- TRAFFIC UPDATE LOGIC (Every 10 Mins) ---
@@ -291,7 +288,7 @@ const sendMainMenu = (chatId, username) => {
             inline_keyboard: [
                 [{ text: "📱 Get Number", callback_data: "menu_get_number" }, { text: "💰 Balance", callback_data: "menu_balance" }],
                 [{ text: "📱 Active Number", callback_data: "menu_active" }, { text: "💸 Withdraw", callback_data: "menu_withdraw" }],
-                [{ text: "📊 𝗧𝗥𝗔𝗙𝗙𝗜𝗖 𝗦𝗘𝗥𝗩𝗘𝗥", callback_data: "menu_traffic" }],
+                [{ text: "📊 𝗧𝗥𝗔𝗙𝗙𝗜𝗖 𝗦𝗘𝗥𝗩Ｅ𝗥", callback_data: "menu_traffic" }],
                 [{ text: "🤝 Referral", callback_data: "menu_referral" }],
                 [{ text: "🤖 Bot Update Channel", url: config.updateGroup }]
             ]
@@ -638,6 +635,7 @@ bot.on('callback_query', async (query) => {
             buttons.push([{ text: "🔙 Back", callback_data: "menu_get_number" }]);
             bot.editMessageText(`🌍 Select country for ${sName}:`, { chat_id: chatId, message_id: query.message.message_id, reply_markup: { inline_keyboard: buttons } });
         }
+        // FIXED REGION: Custom formatting configuration matching standard Nexa endpoint schemas
         else if (data.startsWith("country_")) {
             const [, sName, rangePattern] = data.split("_");
             try {
@@ -645,10 +643,8 @@ bot.on('callback_query', async (query) => {
                 await bot.editMessageText(`⏳ **${loadingText}**`, { chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown" });
                 
                 for (let i = 0; i < numberLimit; i++) {
-                    const response = await axios.post(`${NEXA_BASE_URL}numbers/get?api_key=${NEXA_API_KEY}`, {
-                        range: rangePattern,
-                        format: "normal"
-                    });
+                    // Optimized axios interface to bypass body parsing rules inside Nexa API ranges
+                    const response = await axios.get(`${NEXA_BASE_URL}numbers/get?api_key=${NEXA_API_KEY}&range=${encodeURIComponent(rangePattern)}&format=normal`);
 
                     if (response.data && response.data.success) {
                         const country = getCountryByPattern(rangePattern);
@@ -671,7 +667,7 @@ bot.on('callback_query', async (query) => {
 
                         const assignedMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝙰𝚂𝚂𝙸𝙶𝙽𝙴𝙳 .𓆪𓆪\n` +
                                           `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                          `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
+                                          `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲ﺮ » \`${numData.number}\`\n` +
                                           `⏳ ᯓ𝚂𝚃𝙰𝚃𝚄𝚂 » 𝚆𝚊𝚒𝚝𝚒𝚗𝚘𝚐 𝙵𝚘rar 𝚂𝙼𝚂...\n` +
                                           `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
 
@@ -708,7 +704,7 @@ bot.on('callback_query', async (query) => {
                                     
                                     const userOtpMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
                                                       `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                      `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
+                                                      `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲ﺮ » \`${numData.number}\`\n` +
                                                       `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n\n` +
                                                       `Your verification code is: ${otpRes.data.otp}. Do not share with anyone.`;
 
@@ -825,7 +821,6 @@ bot.on('message', async (msg) => {
     if (isAdmin(userId) && adminActionState[userId]) {
         const action = adminActionState[userId];
         
-        // FAKE CONTROL CAPTURES
         if (action === 'setting_fake_interval') {
             const secs = parseInt(msgText.trim());
             if (!isNaN(secs) && secs > 0) {
@@ -1073,22 +1068,6 @@ bot.on('message', async (msg) => {
             const amt = parseFloat(msgText);
             if (isNaN(amt) || amt < 1.0 || amt > users[userId].balance) return bot.sendMessage(chatId, "❌ Invalid amount.");
             state.amount = amt; state.step = 3;
-            bot.sendMessage(chatId, `⚠️ Confirm withdraw $${amt.toFixed(4)}?`, { 
-                reply_markup: { inline_keyboard: [[{ text: "✅ Confirm", callback_data: "confirm_withdraw" }, { text: "❌ No", callback_data: "main_menu" }]] } 
-            });
-        }
-        return;
-    }
-
-    if (transferStates[userId]) {
-        const state = transferStates[userId];
-        if (state.step === 1) {
-            state.targetId = parseInt(msgText.trim()); state.step = 2;
-            bot.sendMessage(chatId, `💵 Enter amount to transfer:`);
-        } else if (state.step === 2) {
-            const amount = parseFloat(msgText.trim());
-            if (isNaN(amount) || amount > users[userId].balance) return bot.sendMessage(chatId, "❌ Invalid amount.");
-            state.amount = amount; state.step = 3;
             bot.sendMessage(chatId, `⚠️ Confirm transfer $${amount.toFixed(4)} to \`${state.targetId}\`?`, { 
                 reply_markup: { inline_keyboard: [[{ text: "✅ Confirm", callback_data: "confirm_transfer" }, { text: "❌ Cancel", callback_data: "main_menu" }]] } 
             });
