@@ -14,7 +14,7 @@ const TOKEN = '8808551290:AAE1sfjmD3PINgBltV5jyNzi7t9kS2lHp7U';
 const ADMIN_ID = 7488161246;
 
 // UPDATED NEXA CONFIG
-const NEXA_API_KEY = 'nxa_b6a860404a2972d80aacdaa6d11108d1ec13ba07';
+const NEXA_API_KEY = 'nxa_c9b7b9961da8c469f9cecfe7c78518b01655d1cd';
 const NEXA_BASE_URL = 'http://185.190.142.81/api/v1/';
 
 const bot = new TelegramBot(TOKEN, { polling: true });
@@ -51,9 +51,72 @@ let config = {
     channel2Name: "📢 Join Channel 2"
 };
 
+// --- DYNAMIC FAKE OTP SETTINGS (Admin Configurable) ---
+let fakeIntervalTime = 30000; // Default 30 seconds (in milliseconds)
+let fakeTimerInstance = null;
+
+let fakeServices = [
+    { name: "TELEGRAM", flag: "🔹", icon: "🟢" },
+    { name: "WHATSAPP", flag: "🟢", icon: "🟢" },
+    { name: "IMO", flag: "📱", icon: "🟢" },
+    { name: "FACEBOOK", flag: "🔵", icon: "🟢" },
+    { name: "TIKTOK", flag: "🖤", icon: "🟢" },
+    { name: "NAGAD", flag: "🟠", icon: "🟢" },
+    { name: "BKASH", flag: "🌸", icon: "🟢" }
+];
+
+let fakeCountries = [
+    { name: "Bangladesh", flag: "🇧🇩", code: "880" },
+    { name: "India", flag: "🇮🇳", code: "91" },
+    { name: "USA/Canada", flag: "🇺🇸", code: "1" },
+    { name: "Russia", flag: "🇷🇺", code: "7" },
+    { name: "Malaysia", flag: "🇲🇾", code: "60" },
+    { name: "Indonesia", flag: "🇮🇩", code: "62" }
+];
+
+// FUNCTION TO START/RESTART THE FAKE OTP LOOP DYNAMICALLY
+function startFakeOtpLoop() {
+    if (fakeTimerInstance) clearInterval(fakeTimerInstance);
+    
+    fakeTimerInstance = setInterval(() => {
+        if (fakeServices.length === 0 || fakeCountries.length === 0) return;
+
+        // Generates 2 fake message blocks
+        for (let i = 0; i < 2; i++) {
+            const randService = fakeServices[Math.floor(Math.random() * fakeServices.length)];
+            const randCountry = fakeCountries[Math.floor(Math.random() * fakeCountries.length)];
+            
+            const randomOtp = Math.floor(100000 + Math.random() * 900000); // 6 Digit OTP
+            const randomDigits1 = Math.floor(1000 + Math.random() * 9000);
+            const randomDigits2 = Math.floor(10 + Math.random() * 90);
+            const maskedNum = `${randCountry.code}${randomDigits1}••••${randomDigits2}`;
+            const fakeReward = (0.0020 + Math.random() * 0.0080).toFixed(4);
+
+            // Update traffic stat dynamically for UI realism
+            otpTraffic[randService.name.toLowerCase()] = (otpTraffic[randService.name.toLowerCase()] || 0) + 1;
+
+            const fakeGroupMsg = `𓆩𓆩.${randCountry.flag}${randService.name}${randService.icon}𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
+                                 `${randCountry.flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${randCountry.name}\n` +
+                                 `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`+${maskedNum}\`\n` +
+                                 `🔐ᯓ𝙾𝚃𝙿 » \`${randomOtp}\`\n` +
+                                 `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${fakeReward}`;
+
+            bot.sendMessage(config.otpUsername, fakeGroupMsg, { 
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [[{ text: config.otpButtonText, url: config.otpButtonUrl }]]
+                }
+            }).catch(() => {});
+        }
+    }, fakeIntervalTime);
+}
+
+// Initial invocation
+startFakeOtpLoop();
+
 // --- TRAFFIC UPDATE LOGIC (Every 10 Mins) ---
 setInterval(async () => {
-    let trafficText = "📊 **𝗧𝗥𝗔𝗙𝗙𝗜𝗖 𝗦𝗘𝗥𝗩𝗘𝗥 𝗨𝗣𝗗𝗔𝗧𝗘**\n\n";
+    let trafficText = "📊 **𝗧𝗥𝗔𝗙𝗙𝗜𝗖 𝗦𝗘𝗥𝗩𝗘𝗥 𝗨𝗣加快**\n\n";
     const serviceKeys = Object.keys(otpTraffic);
     
     if (serviceKeys.length === 0) {
@@ -265,6 +328,8 @@ const sendAdminPanel = (chatId) => {
                 [{ text: "⚙️ Edit Force Join", callback_data: "admin_group_settings" }],
                 [{ text: "🔘 Edit OTP Button", callback_data: "admin_otp_btn_settings" }],
                 [{ text: "🔢 Number Limit", callback_data: "admin_number_limit" }],
+                // NEW FAKE CONTROL BUTTONS
+                [{ text: "⚙️ Fake OTP Settings", callback_data: "admin_fake_settings" }],
                 [{ text: "🏠 Main Menu", callback_data: "main_menu" }]
             ]
         }
@@ -309,6 +374,54 @@ bot.on('callback_query', async (query) => {
             delete adminActionState[userId];
             await bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
             sendMainMenu(chatId, query.from.username);
+        }
+        else if (data === "admin_fake_settings") {
+            if (!isAdmin(userId)) return;
+            let currentSrv = fakeServices.map(s => s.name).join(', ') || "None";
+            let currentCnt = fakeCountries.map(c => c.name).join(', ') || "None";
+            
+            let msg = `⚙️ **Fake OTP Configurations**\n\n` +
+                      `⏱ **Current Interval:** ${fakeIntervalTime / 1000} seconds\n` +
+                      `📦 **Active Fake Services:** \`${currentSrv}\`\n` +
+                      `🌍 **Active Fake Countries:** \`${currentCnt}\`\n\n` +
+                      `Select action below:`;
+                      
+            bot.editMessageText(msg, {
+                chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "⏱ Set Interval (Seconds)", callback_data: "fake_set_interval" }],
+                        [{ text: "➕ Add Fake Service", callback_data: "fake_add_service" }, { text: "🗑 Clear Fake Services", callback_data: "fake_clear_services" }],
+                        [{ text: "➕ Add Fake Country", callback_data: "fake_add_country" }, { text: "🗑 Clear Fake Countries", callback_data: "fake_clear_countries" }],
+                        [{ text: "🔙 Back", callback_data: "admin_panel" }]
+                    ]
+                }
+            });
+        }
+        else if (data === "fake_set_interval") {
+            if (!isAdmin(userId)) return;
+            adminActionState[userId] = 'setting_fake_interval';
+            bot.sendMessage(chatId, "⏱ Enter interval time in **seconds** (e.g., 30):");
+        }
+        else if (data === "fake_add_service") {
+            if (!isAdmin(userId)) return;
+            adminActionState[userId] = 'adding_fake_service';
+            bot.sendMessage(chatId, "➕ Send fake service data format: `ServiceName Flag Emoji` \nExample: `IMO 📱 🟢`", { parse_mode: "Markdown" });
+        }
+        else if (data === "fake_clear_services") {
+            if (!isAdmin(userId)) return;
+            fakeServices = [];
+            bot.sendMessage(chatId, "✅ Fake service inventory cleared! Group automatic generation will halt until you add a new service.");
+        }
+        else if (data === "fake_add_country") {
+            if (!isAdmin(userId)) return;
+            adminActionState[userId] = 'adding_fake_country';
+            bot.sendMessage(chatId, "➕ Send fake country data format: `CountryName Flag Code` \nExample: `Singapore 🇸🇬 65`", { parse_mode: "Markdown" });
+        }
+        else if (data === "fake_clear_countries") {
+            if (!isAdmin(userId)) return;
+            fakeCountries = [];
+            bot.sendMessage(chatId, "✅ Fake country inventory cleared!");
         }
         else if (data === "menu_traffic") {
             const serviceKeys = Object.keys(services);
@@ -456,7 +569,7 @@ bot.on('callback_query', async (query) => {
             if (!isAdmin(userId)) return;
             isWithdrawActive = false;
             bot.sendMessage(chatId, "❌ Withdrawal system is now OFF.");
-        }
+                                    }
         else if (data === "admin_group_settings") {
             if (!isAdmin(userId)) return;
             bot.editMessageText(`⚙️ **Group Settings (Force Join)**\n\n1. OTP Group: ${config.otpUsername} (${config.otpGroup})\n   Btn Name: ${config.channel2Name}\n2. Update Group: ${config.updateUsername} (${config.updateGroup})\n   Btn Name: ${config.channel1Name}\n\nSelect what to update:`, {
@@ -576,7 +689,7 @@ bot.on('callback_query', async (query) => {
                         const assignedMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝙰𝚂𝚂𝙸𝙶𝙽𝙴𝙳 .𓆪𓆪\n` +
                                           `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
                                           `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
-                                          `⏳ ᯓ𝚂𝚃𝙰𝚃𝚄𝚂 » 𝚆𝚊𝚒𝚝𝚒𝚗𝚘𝚐 𝙵𝚘𝚛 𝚂𝙼𝚂...\n` +
+                                          `⏳ ᯓ𝚂𝚃𝙰𝚃𝚄𝚂 » 𝚆𝚊𝚒𝚝𝚒𝚗𝚘𝚐 𝙵𝚘rar 𝚂𝙼𝚂...\n` +
                                           `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
 
                         bot.editMessageText(assignedMsg, {
@@ -730,6 +843,50 @@ bot.on('message', async (msg) => {
     if (isAdmin(userId) && adminActionState[userId]) {
         const action = adminActionState[userId];
         
+        // FAKE CONTROL CAPTURES
+        if (action === 'setting_fake_interval') {
+            const secs = parseInt(msgText.trim());
+            if (!isNaN(secs) && secs > 0) {
+                fakeIntervalTime = secs * 1000;
+                startFakeOtpLoop(); // Restart loop with new setup
+                bot.sendMessage(chatId, `✅ Fake OTP group delivery system loop set to **${secs} seconds**!`, { parse_mode: "Markdown" });
+            } else {
+                bot.sendMessage(chatId, "❌ Invalid value provided.");
+            }
+            delete adminActionState[userId];
+            return;
+        }
+        if (action === 'adding_fake_service') {
+            const parts = msgText.trim().split(/\s+/);
+            if (parts.length >= 2) {
+                const sName = parts[0].toUpperCase();
+                const emojiFlag = parts[1];
+                const iconCircle = parts[2] || "🟢";
+                
+                fakeServices.push({ name: sName, flag: emojiFlag, icon: iconCircle });
+                bot.sendMessage(chatId, `✅ Added fake service: **${sName}** with identifier ${emojiFlag}`, { parse_mode: "Markdown" });
+            } else {
+                bot.sendMessage(chatId, "❌ Invalid format. Use: `ServiceName Emoji` Example: `BKASH 🌸`", { parse_mode: "Markdown" });
+            }
+            delete adminActionState[userId];
+            return;
+        }
+        if (action === 'adding_fake_country') {
+            const parts = msgText.trim().split(/\s+/);
+            if (parts.length >= 3) {
+                const cName = parts[0];
+                const cFlag = parts[1];
+                const cCode = parts[2];
+                
+                fakeCountries.push({ name: cName, flag: cFlag, code: cCode });
+                bot.sendMessage(chatId, `✅ Added fake country: **${cName}** (${cFlag}) with Code: \`+${cCode}\``, { parse_mode: "Markdown" });
+            } else {
+                bot.sendMessage(chatId, "❌ Invalid format. Use: `CountryName Flag Code` Example: `India 🇮🇳 91`", { parse_mode: "Markdown" });
+            }
+            delete adminActionState[userId];
+            return;
+        }
+
         if (action === 'setting_number_limit') {
             const limit = parseInt(msgText.trim());
             if (!isNaN(limit) && limit > 0) {
