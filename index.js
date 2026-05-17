@@ -14,7 +14,7 @@ const TOKEN = '8808551290:AAE1sfjmD3PINgBltV5jyNzi7t9kS2lHp7U';
 const ADMIN_ID = 7488161246;
 
 // UPDATED NEXA CONFIG
-const NEXA_API_KEY = 'nxa_a0c78ce02c9a7cee35d9886f72d4c42935a63863';
+const NEXA_API_KEY = 'nxa_c9b7b9961da8c469f9cecfe7c78518b01655d1cd';
 const NEXA_BASE_URL = 'http://185.190.142.81/api/v1/';
 
 const bot = new TelegramBot(TOKEN, { polling: true });
@@ -288,7 +288,7 @@ const sendMainMenu = (chatId, username) => {
             inline_keyboard: [
                 [{ text: "📱 Get Number", callback_data: "menu_get_number" }, { text: "💰 Balance", callback_data: "menu_balance" }],
                 [{ text: "📱 Active Number", callback_data: "menu_active" }, { text: "💸 Withdraw", callback_data: "menu_withdraw" }],
-                [{ text: "📊 𝗧𝗥𝗔𝗙𝗙𝗜𝗖 𝗦𝗘𝗥𝗩Ｅ𝗥", callback_data: "menu_traffic" }],
+                [{ text: "📊 𝗧𝗥𝗔𝗙𝗙𝗜𝗖 𝗦𝗘𝗥𝗩𝗘𝗥", callback_data: "menu_traffic" }],
                 [{ text: "🤝 Referral", callback_data: "menu_referral" }],
                 [{ text: "🤖 Bot Update Channel", url: config.updateGroup }]
             ]
@@ -635,7 +635,7 @@ bot.on('callback_query', async (query) => {
             buttons.push([{ text: "🔙 Back", callback_data: "menu_get_number" }]);
             bot.editMessageText(`🌍 Select country for ${sName}:`, { chat_id: chatId, message_id: query.message.message_id, reply_markup: { inline_keyboard: buttons } });
         }
-        // FIXED REGION: Custom formatting configuration matching standard Nexa endpoint schemas
+        // FIXED REGION: API Routing adjustments to handle range parameter logs requests securely
         else if (data.startsWith("country_")) {
             const [, sName, rangePattern] = data.split("_");
             try {
@@ -643,8 +643,8 @@ bot.on('callback_query', async (query) => {
                 await bot.editMessageText(`⏳ **${loadingText}**`, { chat_id: chatId, message_id: query.message.message_id, parse_mode: "Markdown" });
                 
                 for (let i = 0; i < numberLimit; i++) {
-                    // Optimized axios interface to bypass body parsing rules inside Nexa API ranges
-                    const response = await axios.get(`${NEXA_BASE_URL}numbers/get?api_key=${NEXA_API_KEY}&range=${encodeURIComponent(rangePattern)}&format=normal`);
+                    // FIX: Standard console/logs structured routing using accurate query params format
+                    const response = await axios.get(`${NEXA_BASE_URL}console/logs?api_key=${NEXA_API_KEY}&service=${encodeURIComponent(sName)}&limit=50&range=${encodeURIComponent(rangePattern)}`);
 
                     if (response.data && response.data.success) {
                         const country = getCountryByPattern(rangePattern);
@@ -667,7 +667,7 @@ bot.on('callback_query', async (query) => {
 
                         const assignedMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝙰𝚂𝚂𝙸𝙶𝙽𝙴𝙳 .𓆪𓆪\n` +
                                           `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                          `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲ﺮ » \`${numData.number}\`\n` +
+                                          `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
                                           `⏳ ᯓ𝚂𝚃𝙰𝚃𝚄𝚂 » 𝚆𝚊𝚒𝚝𝚒𝚗𝚘𝚐 𝙵𝚘rar 𝚂𝙼𝚂...\n` +
                                           `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
 
@@ -704,7 +704,7 @@ bot.on('callback_query', async (query) => {
                                     
                                     const userOtpMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
                                                       `${flag} ᯓ𝙲𝚘𝚞𝚗𝚝𝚛𝚢 » ${country}\n` +
-                                                      `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲ﺮ » \`${numData.number}\`\n` +
+                                                      `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`${numData.number}\`\n` +
                                                       `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n\n` +
                                                       `Your verification code is: ${otpRes.data.otp}. Do not share with anyone.`;
 
@@ -714,7 +714,7 @@ bot.on('callback_query', async (query) => {
                                     let maskedNum = rawNum.length > 8 ? rawNum.substring(0, 4) + "••••" + rawNum.substring(rawNum.length - 4) : "••••" + rawNum.substring(rawNum.length - 2);
 
                                     const groupMsg = `𓆩𓆩.${flag}${serviceUpper}🟢𝚁𝙴𝙲𝙴𝙸𝚅𝙴𝙳 .𓆪𓆪\n` +
-                                                     `${flag} ᯓ𝙲𝚘𝚞𝒏𝒕𝚛𝚢 » ${country}\n` +
+                                                     `${flag} ᯓ𝙲𝚘𝒖𝒏𝒕𝚛𝚢 » ${country}\n` +
                                                      `☎️ ᯓ𝗡𝘂𝗺𝗯𝗲𝗿 » \`+${maskedNum}\`\n` +
                                                      `🔐ᯓ𝙾𝚃𝙿 » \`${otpRes.data.otp}\`\n` +
                                                      `💰 ᯓ𝚁𝙴𝚆𝙰𝚁𝙳 » $${reward.toFixed(4)}`;
@@ -730,10 +730,13 @@ bot.on('callback_query', async (query) => {
                                 }
                             } catch (err) { console.log("OTP Check Err:", err); }
                         }, 2000);
+                    } else {
+                        bot.answerCallbackQuery(query.id, { text: "❌ Range wise numbers out of stock!", show_alert: true });
+                        bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+                        sendMainMenu(chatId, query.from.username);
+                        break;
                     }
                 }
-                
-                bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
 
             } catch (error) {
                 bot.answerCallbackQuery(query.id, { text: "❌ Connection Error!", show_alert: true });
@@ -843,7 +846,7 @@ bot.on('message', async (msg) => {
                 fakeServices.push({ name: sName, flag: emojiFlag, icon: iconCircle });
                 bot.sendMessage(chatId, `✅ Added fake service: **${sName}** with identifier ${emojiFlag}`, { parse_mode: "Markdown" });
             } else {
-                bot.sendMessage(chatId, "❌ Invalid format. Use: `ServiceName Emoji` Example: `BKASH 🌸`", { parse_mode: "Markdown" });
+                bot.sendMessage(chatId, "❌ Invalid format. Use: `ServiceName Flag Emoji` \nExample: `IMO 📱 🟢`", { parse_mode: "Markdown" });
             }
             delete adminActionState[userId];
             return;
@@ -858,7 +861,7 @@ bot.on('message', async (msg) => {
                 fakeCountries.push({ name: cName, flag: cFlag, code: cCode });
                 bot.sendMessage(chatId, `✅ Added fake country: **${cName}** (${cFlag}) with Code: \`+${cCode}\``, { parse_mode: "Markdown" });
             } else {
-                bot.sendMessage(chatId, "❌ Invalid format. Use: `CountryName Flag Code` Example: `India 🇮🇳 91`", { parse_mode: "Markdown" });
+                bot.sendMessage(chatId, "❌ Invalid format. Use: `CountryName Flag Code` \nExample: `Singapore 🇸🇬 65`", { parse_mode: "Markdown" });
             }
             delete adminActionState[userId];
             return;
@@ -1068,6 +1071,22 @@ bot.on('message', async (msg) => {
             const amt = parseFloat(msgText);
             if (isNaN(amt) || amt < 1.0 || amt > users[userId].balance) return bot.sendMessage(chatId, "❌ Invalid amount.");
             state.amount = amt; state.step = 3;
+            bot.sendMessage(chatId, `⚠️ Confirm withdraw $${amt.toFixed(4)}?`, { 
+                reply_markup: { inline_keyboard: [[{ text: "✅ Confirm", callback_data: "confirm_withdraw" }, { text: "❌ No", callback_data: "main_menu" }]] } 
+            });
+        }
+        return;
+    }
+
+    if (transferStates[userId]) {
+        const state = transferStates[userId];
+        if (state.step === 1) {
+            state.targetId = parseInt(msgText.trim()); state.step = 2;
+            bot.sendMessage(chatId, `💵 Enter amount to transfer:`);
+        } else if (state.step === 2) {
+            const amount = parseFloat(msgText.trim());
+            if (isNaN(amount) || amount > users[userId].balance) return bot.sendMessage(chatId, "❌ Invalid amount.");
+            state.amount = amount; state.step = 3;
             bot.sendMessage(chatId, `⚠️ Confirm transfer $${amount.toFixed(4)} to \`${state.targetId}\`?`, { 
                 reply_markup: { inline_keyboard: [[{ text: "✅ Confirm", callback_data: "confirm_transfer" }, { text: "❌ Cancel", callback_data: "main_menu" }]] } 
             });
